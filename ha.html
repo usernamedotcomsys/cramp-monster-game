@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cramp Monster Fight - Rewards</title>
+<style>
+body { background: #ffe4ef; text-align: center; font-family: Arial; overflow: hidden; }
+canvas { background: #fff; border: 3px solid #ff4e7a; border-radius: 20px; display: block; margin: 0 auto; }
+h2 { margin-bottom: 5px; }
+.controls button {
+  margin: 5px; padding: 10px 20px; font-size: 18px; border-radius: 10px; border: none;
+  background: #ff5f8a; color: white; cursor: pointer;
+}
+.controls button:hover { background:#ff2e6a; }
+#rewardPanel { display:none; margin-top: 10px; }
+#rewardPanel button { background:#f0a; margin:5px; }
+</style>
+</head>
+<body>
+
+<h2>Cramp Monster Fight — Cartoon Style 😂</h2>
+<p>Hits: <span id="hitCount">0</span></p>
+<canvas id="gameCanvas" width="500" height="450"></canvas>
+
+<div class="controls" id="controls">
+  <button id="kickBtn">Kick 🦵</button>
+  <button id="slapBtn">Slap ✋</button>
+  <button id="beatBtn">Beat 🥊</button>
+</div>
+
+<div id="rewardPanel">
+  <p>🎁 Reward! Choose one:</p>
+  <button id="hugBtn">Hug 🤗</button>
+  <button id="chocoBtn">Chocolates 🍫</button>
+  <button id="contBtn">Continue ➡️</button>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let hitCount = 0, monsterAlive = true, monsterCrying = false, cryingTimer = 0, shakeTime = 0;
+let showReward = false, rewardStage = 0;
+document.getElementById('hitCount').innerText = hitCount;
+
+const emojis = [], messages = [], particles = [], begMessages = [], actions = [];
+const laughFaces = ["😂","🤣","😆","😜","😝"];
+const tears = [];
+const chocolateParticles = [];
+
+function random(min,max){ return Math.random()*(max-min)+min; }
+
+// Spawn effects
+function spawnMessage(x,y){ messages.push({x:x-50,y:y-20,text:"I am sorry Vaishu 😭",speed:1.5+Math.random()*1,opacity:1,angle:random(-0.3,0.3)});}
+function spawnBegMessage(){ begMessages.push({x:80,y:100,text:"Please forgive me Vaishu 🙏😂",speed:0.5,opacity:1,angle:0});}
+function spawnEmoji(x,y,count=1){ for(let i=0;i<count;i++){ emojis.push({x:x,y:y,emoji:laughFaces[Math.floor(Math.random()*laughFaces.length)],speed:2+Math.random()*2,opacity:1,angle:random(-0.5,0.5)}); } }
+function spawnParticles(x,y,count=5){ for(let i=0;i<count;i++){ particles.push({x:x,y:y,vx:random(-2,2),vy:random(-3,0),radius:2+Math.random()*3,opacity:1}); } }
+function spawnTears(){ tears.push({x:150+Math.random()*20,y:180,speed:2+Math.random()*2,opacity:1}); tears.push({x:230+Math.random()*20,y:180,speed:2+Math.random()*2,opacity:1}); }
+function spawnAction(type){ actions.push({type:type, timer:20, progress:0}); }
+function spawnChocolate(){ chocolateParticles.push({x:random(100,400),y:0,vx:0,vy:random(2,5),size:8+Math.random()*4,opacity:1}); }
+
+// Draw/update helpers
+function drawMessages(){ messages.forEach(m=>{ ctx.save(); ctx.globalAlpha=m.opacity; ctx.translate(m.x,m.y); ctx.rotate(m.angle); ctx.fillStyle="#333"; ctx.font="18px Arial"; ctx.fillText(m.text,0,0); ctx.restore(); }); }
+function updateMessages(){ messages.forEach(m=>{ m.y+=m.speed; m.opacity-=0.01; }); for(let i=messages.length-1;i>=0;i--) if(messages[i].opacity<=0) messages.splice(i,1); }
+
+function drawBegMessages(){ begMessages.forEach(b=>{ ctx.save(); ctx.globalAlpha=b.opacity; ctx.translate(b.x,b.y); ctx.rotate(Math.sin(Date.now()/200)*0.1); ctx.fillStyle="#222"; ctx.font="22px Arial"; ctx.fillText(b.text,0,0); ctx.restore(); }); }
+function updateBegMessages(){ begMessages.forEach(b=>{ b.opacity-=0.005; }); for(let i=begMessages.length-1;i>=0;i--) if(begMessages[i].opacity<=0) begMessages.splice(i,1); }
+
+function drawEmojis(){ emojis.forEach(e=>{ ctx.save(); ctx.globalAlpha=e.opacity; ctx.translate(e.x,e.y); ctx.rotate(e.angle); ctx.font="32px Arial"; ctx.fillText(e.emoji,0,0); ctx.restore(); }); }
+function updateEmojis(){ emojis.forEach(e=>{ e.y+=e.speed; e.opacity-=0.01; }); for(let i=emojis.length-1;i>=0;i--) if(emojis[i].opacity<=0) emojis.splice(i,1); }
+
+function drawParticles(){ particles.forEach(p=>{ ctx.globalAlpha=p.opacity; ctx.fillStyle="#f0a"; ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,Math.PI*2); ctx.fill(); }); ctx.globalAlpha=1; }
+function updateParticles(){ particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.opacity-=0.02; }); for(let i=particles.length-1;i>=0;i--) if(particles[i].opacity<=0) particles.splice(i,1); }
+
+function drawTears(){ ctx.fillStyle="rgba(0,150,255,0.7)"; tears.forEach(t=>{ ctx.globalAlpha=t.opacity; ctx.beginPath(); ctx.arc(t.x,t.y,6,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }); }
+function updateTears(){ tears.forEach(t=>{ t.y+=t.speed; t.opacity-=0.01; }); for(let i=tears.length-1;i>=0;i--) if(tears[i].opacity<=0) tears.splice(i,1); }
+
+function drawChocolate(){ chocolateParticles.forEach(c=>{ ctx.globalAlpha=c.opacity; ctx.fillStyle="#a52a2a"; ctx.fillRect(c.x,c.y,c.size,c.size); ctx.globalAlpha=1; }); }
+function updateChocolate(){ chocolateParticles.forEach(c=>{ c.y+=c.vy; c.opacity-=0.01; }); for(let i=chocolateParticles.length-1;i>=0;i--) if(chocolateParticles[i].opacity<=0) chocolateParticles.splice(i,1); }
+
+// Draw Monster
+function drawMonster(){
+  if(!monsterAlive){ ctx.font="40px Arial"; ctx.fillStyle="#000"; ctx.fillText("Monster Defeated 💀",100,230); return; }
+  let bodyY = hitCount>=10?260:220; let bodyHeight=hitCount>=10?120:150;
+  let offsetX=0,offsetY=0; if(shakeTime>0){offsetX=random(-3,3);offsetY=random(-3,3);shakeTime--;}
+  ctx.save(); ctx.translate(offsetX,offsetY);
+  let bounce=Math.sin(Date.now()/300)*5;
+  ctx.fillStyle="#ff5f8a"; ctx.beginPath(); ctx.ellipse(350,bodyY+bounce,80,bodyHeight,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(320,bodyY-50,20,0,Math.PI*2); ctx.arc(380,bodyY-50,20,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="black"; ctx.beginPath(); if(monsterCrying){ctx.arc(320,bodyY-45,5,0,Math.PI*2);ctx.arc(380,bodyY-45,5,0,Math.PI*2);} else {ctx.arc(320,bodyY-50,10,0,Math.PI*2);ctx.arc(380,bodyY-50,10,0,Math.PI*2);} ctx.fill();
+  ctx.restore();
+}
+
+// Draw Cartoon Girl
+function drawGirl(actionProgress=0, actionType=null){
+  let x=100, y=350;
+  ctx.save();
+  ctx.fillStyle="#ffcccc"; ctx.fillRect(x-10,y-60,20,60);
+  ctx.fillStyle="#fcd7b6"; ctx.beginPath(); ctx.arc(x,y-75,15,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle="#aa6644"; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(x-12,y-82); ctx.quadraticCurveTo(x,y-90,x+12,y-82); ctx.stroke();
+  ctx.strokeStyle="#ffcccc"; ctx.lineWidth=6;
+  ctx.beginPath();
+  if(actionType==="slap"){ let angle=-Math.PI/4+Math.sin(actionProgress*Math.PI)*Math.PI/2; ctx.moveTo(x,y-65); ctx.lineTo(x+40*Math.cos(angle),y-65-40*Math.sin(angle)); } else { ctx.moveTo(x,y-65); ctx.lineTo(x+20,y-45);}
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,y-65); ctx.lineTo(x-20,y-45); ctx.stroke();
+  ctx.beginPath();
+  if(actionType==="kick"){ let angle=Math.PI/10 + Math.sin(actionProgress*Math.PI)*Math.PI/3; ctx.moveTo(x,y); ctx.lineTo(x+50*Math.cos(angle),y-50*Math.sin(angle));} else { ctx.moveTo(x,y); ctx.lineTo(x-10,y+30);}
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-10,y+30); ctx.stroke();
+  ctx.restore();
+}
+
+// Draw boy hugging girl
+function drawHug(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#ffcccc"; ctx.fillRect(200,250,20,60); // girl torso
+  ctx.fillStyle="#fcd7b6"; ctx.beginPath(); ctx.arc(210,240,15,0,Math.PI*2); ctx.fill(); // girl head
+  ctx.fillStyle="#add8e6"; ctx.fillRect(160,250,20,60); // boy torso
+  ctx.fillStyle="#fcd7b6"; ctx.beginPath(); ctx.arc(170,240,15,0,Math.PI*2); ctx.fill(); // boy head
+  ctx.strokeStyle="#000"; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(170,270); ctx.lineTo(210,270); ctx.stroke(); // hug arms
+  ctx.fillStyle="#000"; ctx.font="24px Arial"; ctx.fillText("🤗 Hugging!",150,200);
+}
+
+// Draw actions
+function drawActions(){ actions.forEach(a=>{ drawGirl(a.progress/20,a.type); a.progress++; a.timer--; if(a.timer<=0) actions.splice(actions.indexOf(a),1); }); }
+
+// Animate loop
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(showReward && rewardStage==="hug"){ drawHug(); } else {
+  drawMonster(); drawActions(); drawMessages(); updateMessages();
+  drawBegMessages(); updateBegMessages();
+  drawEmojis(); updateEmojis();
+  drawParticles(); updateParticles();
+  drawTears(); updateTears();
+  drawChocolate(); updateChocolate();
+  if(monsterCrying){cryingTimer--; if(cryingTimer<=0) monsterCrying=false;}
+  }
+  requestAnimationFrame(animate);
+}
+animate();
+
+// Attack logic
+function attack(type){
+  if(!monsterAlive || showReward) return;
+  let hitPower=0, emojiCount=1, particleCount=5;
+  if(type==="kick"){hitPower=1; shakeTime=5; emojiCount=2; particleCount=6;}
+  if(type==="slap"){hitPower=0.5; shakeTime=2; emojiCount=1; particleCount=3;}
+  if(type==="beat"){hitPower=2; shakeTime=10; emojiCount=4; particleCount=10;}
+
+  hitCount+=hitPower;
+  document.getElementById('hitCount').innerText=Math.floor(hitCount);
+
+  monsterCrying=true; cryingTimer=40;
+  spawnTears(); spawnMessage(350,200); spawnEmoji(350,180,emojiCount);
+  spawnParticles(350,220,particleCount); spawnAction(type);
+
+  if([10,50,100].includes(Math.floor(hitCount))){ showRewardPanel(Math.floor(hitCount)); }
+  if(hitCount>=100){ monsterAlive=false; showRewardPanel("end"); }
+}
+
+function showRewardPanel(stage){
+  rewardStage=stage; showReward=true;
+  document.getElementById('rewardPanel').style.display="block";
+  document.getElementById('controls').style.display="none";
+}
+
+function hideRewardPanel(){ showReward=false; document.getElementById('rewardPanel').style.display="none"; document.getElementById('controls').style.display="block"; }
+
+// Reward buttons
+document.getElementById('hugBtn').addEventListener('click',()=>{ rewardStage="hug"; });
+document.getElementById('chocoBtn').addEventListener('click',()=>{ for(let i=0;i<50;i++) spawnChocolate(); hideRewardPanel(); });
+document.getElementById('contBtn').addEventListener('click',()=>{ hideRewardPanel(); });
+
+// Attack buttons
+document.getElementById('kickBtn').addEventListener('click',()=>attack('kick'));
+document.getElementById('slapBtn').addEventListener('click',()=>attack('slap'));
+document.getElementById('beatBtn').addEventListener('click',()=>attack('beat'));
+</script>
+</body>
+</html>
